@@ -111,11 +111,11 @@ def main(detector , predictor):
             else:
                 new_frame[:] = (255, 0,0)
                 cv2.putText(frame,"LEFT" , (50 , 100) , font , 2, (0,0,255), 3)
-            #right_eye.drawLines(frame)
-            #left_eye.drawLines(frame)
+            right_eye.drawLines(frame)
+            left_eye.drawLines(frame)
 
         cv2.imshow("Frame", frame)
-        cv2.imshow("New Frame", new_frame)
+        #cv2.imshow("New Frame", new_frame)
         key = cv2.waitKey(1)
         if key > 0:
             break

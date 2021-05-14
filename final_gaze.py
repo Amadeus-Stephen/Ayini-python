@@ -3,20 +3,18 @@ import cv2
 import dlib
 import math
 from math import hypot
-from math import pi, pow
 import numpy as np
-import autopy
-
+import socket
 
 detector  = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
-
+PORT      = 12345
+HOST      = '127.0.0.1'
 class Eye_base:
     def __init__(self, side,points,thresh ):
         self.side   = side
         self.points = points
         self.thresh = thresh
-
     def blink(self, frame):
         hor_line_length = hypot((self.left_point[0] - self.right_point[0]),   (self.left_point[1] - self.right_point[1])) 
         ver_line_length = hypot((self.center_top[0] - self.center_bottom[0]), (self.center_top[1] - self.center_bottom[1]))
@@ -25,25 +23,41 @@ class Eye_base:
 
         return ratio;
 
+class Socket_Controller:
+    def __init__(self, PORT , HOST):
+        self.PORT = PORT
+        self.HOST = HOST
+
+
+    def run_server(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind((self.HOST, self.PORT))
+        s.listen()
+        print("server listening on port {0}".format(PORT))
+        while True:
+            c , addr = s.accept()
+            with c:
+                print("connected by", addr)
+                c.send(stream_data())
+
+    def stream_data(self, coords):
+        print(coords)
+        return pickle.dumps(coords)
+        
+
 class Main:
     def __init__(self, detector , predictor):
-        self.detector   = detector
-        self.predictor  = predictor
-        self.cap        = cv2.VideoCapture(-1)
-        self.width_cam  = 640
-        self.height_cam = 480
-        self.width_screen  = autopy.screen.size()[0]
-        self.height_screen = autopy.screen.size()[1]
+        self.detector  = detector
+        self.predictor = predictor
 
     def main(self):
+        cap = cv2.VideoCapture(0)
 
 
         while True:
-            _, self.frame = self.cap.read()
-            self.frame = cv2.flip(self.frame,1)
-
-            thresh   = self.frame.copy()
-            gray     = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
+            _, frame = cap.read()
+            thresh   = frame.copy()
+            gray     = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             rects    = detector(gray)
 
             for rect in rects:
@@ -53,11 +67,11 @@ class Main:
                 
                 left_eye  = Eye_base("left",  [36, 37, 38, 40, 41], thresh[:, 0:mid])
                 right_eye = Eye_base("right", [42, 43, 44, 46, 47], thresh[:,  mid:])
-                mask      = np.zeros(self.frame.shape[:2], dtype=np.uint8)
+                mask      = np.zeros(frame.shape[:2], dtype=np.uint8)
 
                 mask  = self.cal_mask(shape,mask,left_eye.points,right_eye.points)
 
-                eyes = cv2.bitwise_and(self.frame, self.frame , mask=mask)
+                eyes = cv2.bitwise_and(frame, frame , mask=mask)
 
                 mask = (eyes == [0,0,0]).all(axis=2)
                 eyes[mask] = [255 ,255,255]
@@ -67,15 +81,15 @@ class Main:
                 _, thresh = cv2.threshold(eyes_gray  , 170, 255 , cv2.THRESH_BINARY)
                 thresh = self.thresh_processing(thresh)
 
-                self.contouring(thresh[:, 0:mid],mid, self.frame,left_eye.side)
-                self.contouring(thresh[:,  mid:],mid, self.frame,right_eye.side)
+                self.contouring(thresh[:, 0:mid],mid, frame,left_eye.side)
+                self.contouring(thresh[:,  mid:],mid, frame,right_eye.side)
 
-            cv2.imshow("eyes"  , self.frame)
-            cv2.imshow("thresh", thresh)
+            cv2.imshow("eyes"  , frame)
+
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
-        self.close(self.cap)
+        self.close(cap)
     
     def shape_to_np(self,shape, dtype="int"):
         coords = np.zeros((68,2), dtype=dtype)
@@ -126,3 +140,6 @@ class Main:
 program = Main(detector, predictor)
                 
 program.main()
+
+#server = Socket_Controller(PORT, HOST)
+#server.run_server()
