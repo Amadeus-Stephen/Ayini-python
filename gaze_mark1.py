@@ -16,9 +16,13 @@ class Eye:
         self.right_point   = (self.landmarks.part(self.pointArray[1]).x , self.landmarks.part(self.pointArray[1]).y)
         self.center_top    = midPoint(self.landmarks.part(self.pointArray[2]), self.landmarks.part(self.pointArray[3]))
         self.center_bottom = midPoint(self.landmarks.part(self.pointArray[4]), self.landmarks.part(self.pointArray[5]))
+
     def drawLines(self , frame):
         hor_line = cv2.line(frame , self.left_point, self.right_point   , (255,255,255),2)
         ver_line = cv2.line(frame , self.center_top, self.center_bottom , (255,255,255),2)
+
+
+        
 
     def blink(self):
         hor_line_length = hypot((self.left_point[0] - self.right_point[0])  , (self.left_point[1] - self.right_point[1]))
@@ -90,29 +94,33 @@ def main(detector , predictor):
         for face in faces:
             x , y = face.left() , face.top()
             x1 , y1 = face.right() , face.bottom()
-            cv2.rectangle(frame , (x ,y ) , (x1 , y1),(255 ,255 ,255))
-            landmarks = predictor(gray, face)
+            print(x)
+            # print(y)
+            # print(x1)
+            # print(y1)
+            #cv2.rectangle(frame , (x ,y ) , (x1 , y1),(255 ,255 ,255))
+            # landmarks = predictor(gray, face)
 
-            #land marks in the order of  l ,r ,ct1,ct2 ,cb1,cb2
-            right_eye = Eye(landmarks, [36,39,37,38,41,40])
-            left_eye   = Eye(landmarks, [42,45,43,44,47,46])
-            left_eye_gaze_ratio  =  left_eye.get_gaze_ratio(frame,gray)
-            right_eye_gaze_ratio =  right_eye.get_gaze_ratio(frame,gray)
+            # #land marks in the order of  l ,r ,ct1,ct2 ,cb1,cb2
+            # right_eye = Eye(landmarks, [36,39,37,38,41,40])
+            # left_eye   = Eye(landmarks, [42,45,43,44,47,46])
+            # left_eye_gaze_ratio  =  left_eye.get_gaze_ratio(frame,gray)
+            # right_eye_gaze_ratio =  right_eye.get_gaze_ratio(frame,gray)
 
 
-            true_gaze_ratio = (right_eye_gaze_ratio + left_eye_gaze_ratio) / 2
+            # true_gaze_ratio = (right_eye_gaze_ratio + left_eye_gaze_ratio) / 2
 
 
-            if true_gaze_ratio <= 1:
-                cv2.putText(frame, "Right" , (50 , 100), font , 2, (0,0,255),3)
-                new_frame[:] = (0 , 0,255)
-            elif 1 < true_gaze_ratio <1.7:
-                cv2.putText(frame, "CENTER" , (50 , 100) , font, 2, (0,0,255),3)
-            else:
-                new_frame[:] = (255, 0,0)
-                cv2.putText(frame,"LEFT" , (50 , 100) , font , 2, (0,0,255), 3)
-            right_eye.drawLines(frame)
-            left_eye.drawLines(frame)
+            # if true_gaze_ratio <= 1:
+            #     cv2.putText(frame, "Right" , (50 , 100), font , 2, (0,0,255),3)
+            #     new_frame[:] = (0 , 0,255)
+            # elif 1 < true_gaze_ratio <1.7:
+            #     cv2.putText(frame, "CENTER" , (50 , 100) , font, 2, (0,0,255),3)
+            # else:
+            #     new_frame[:] = (255, 0,0)
+            #     cv2.putText(frame,"LEFT" , (50 , 100) , font , 2, (0,0,255), 3)
+            # right_eye.drawLines(frame)
+            # left_eye.drawLines(frame)
 
         cv2.imshow("Frame", frame)
         #cv2.imshow("New Frame", new_frame)
