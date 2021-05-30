@@ -64,8 +64,15 @@ class Eye_base:
             (255, 0, 0),
         )
 
+    def cal_bounds(self):
+        eye_height = self.center_bottom[1] - self.center_top[1]
+        eye_width = self.right_point[0] - self.left_point[0]
+
+        print(eye_width, eye_height)
+        return [eye_width, eye_height]
+
     def mid_point(self, p1, p2):
-        return int((p1.x + p2.x) / 2), int((p1.y + p2.y) / 2)
+        return [int((p1.x + p2.x) / 2), int((p1.y + p2.y) / 2)]
 
 
 class Main:
@@ -126,6 +133,22 @@ class Main:
                         thresh[:, mid:], mid, self.frame, right_eye.side, draw=True
                     )
 
+                    abs_scalar = self.cal_scalar(
+                        left_eye.cal_bounds(), right_eye.cal_bounds()
+                    )
+                    abs_center = self.cal_abs_center(
+                        left_eye_center, right_eye_center, abs_scalar
+                    )
+
+                    x3 = np.interp(
+                        abs_center[0], (0, self.width_cam), (0, self.width_screen)
+                    )
+                    y3 = np.interp(
+                        abs_center[1], (0, self.height_cam), (0, self.height_screen)
+                    )
+
+                    # autopy.mouse.move(x3, y3)
+
                 cv2.imshow("eyes", self.frame)
                 # cv2.imshow("thresh", thresh)
 
@@ -174,17 +197,20 @@ class Main:
             cv2.circle(frame, (cx, cy), 4, (0, 0, 255), 2)
 
         # print(cx , cy)
-        return (cx, cy)
+        return [cx, cy]
 
-    def cal_scalar(self, eye1_ray, r2, eye2_ray, direct):
-        eye1_distance = eye1_ray[0][direct] - eye1_ray[1][direct]
-        eye2_distance = eye2_ray[0][direct] - eye2_ray[1][direct]
+    def cal_scalar(self, eye1_bounds, eye2_bounds):
+        x_scalar = eye1_bounds[0] / eye2_bounds[0]
+        y_scalar = eye1_bounds[1] / eye2_bounds[1]
 
-        return eye1_distance / eye2_distance  # scale eye 2
+        return [x_scalar, y_scalar]  # scale eye 2
 
-    def cal_abs_center():
-        print()
-        # cal and return mid point of both eyes here
+    def cal_abs_center(self, eye1_center, eye2_center, scalar):
+        print(eye1_center)
+        abs_x = (eye1_center[0] + (eye2_center[0] * scalar[0])) / 2
+        abs_y = (eye1_center[1] + (eye2_center[1] * scalar[1])) / 2
+
+        return [abs_x, abs_y]
 
     def close(self, cap):
         cap.release()
