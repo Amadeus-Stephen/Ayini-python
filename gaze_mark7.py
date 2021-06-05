@@ -106,36 +106,68 @@ class Eye_base:
         max_y = np.max(eye_region[:, 1])
 
         gray_eye = gray_eye[min_y:max_y, min_x:max_x]
-        _, threshold_eye = cv2.threshold(gray_eye, 170, 255, cv2.THRESH_BINARY)
-        thresh = self.thresh_processing(threshold_eye)
+        #_, threshold_eye = cv2.threshold(gray_eye, 170, 255, cv2.THRESH_BINARY)
+        gray_eye = cv2.GaussianBlur(gray_eye, (7, 7), 0)
+        _, threshold = cv2.threshold(gray_eye, 3, 255, cv2.THRESH_BINARY_INV)
+        thresh = self.thresh_processing(threshold)
         # height, width = threshold_eye.shape
         # left_side_threshold = threshold_eye[0:height, 0 : int(width / 2) : width]
         # left_side_white = cv2.countNonZero(left_side_threshold)
 
         # right_side_threshold = threshold_eye[0:height, int(width / 2) : width]
         # right_side_white = cv2.countNonZero(right_side_threshold)
-        eye_center = self.cal_center(
-            thresh=thresh, mid=2, frame=gray_eye, side=self.side, draw=False
-        )
+        # eye_center = self.cal_center(
+        #     thresh=thresh, mid=2, frame=gray_eye, side=self.side, draw=False
+        # )
 
+        eye_center = self.cal_center(
+            threshold=thresh, mid=2, frame=gray_eye, side=self.side, draw=True
+        )
         # cv2.imshow(self.side + "  threshold", threshold_eye)
-        cv2.imshow(self.side + " gray", mask)
+        cv2.imshow(self.side + " gray", gray_eye)
         return eye_center
 
-    def cal_center(self, thresh, mid, frame, side, draw=False):
-        cnts, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        # print(cnts)
-        cnt = max(cnts, key=cv2.contourArea)
-        M = cv2.moments(cnt)
-        cx = int(M["m10"] / M["m00"])
-        cy = int(M["m01"] / M["m00"])
-        if side == "right":
-            cx += mid
-        if draw:
-            cv2.circle(frame, (cx, cy), 4, (255, 255, 255), 5)
+    # def cal_center(self, thresh, mid, frame, side, draw=False):
+    #     cnts, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    #     # print(cnts)
+    #     cnt = max(cnts, key=cv2.contourArea)
+    #     M = cv2.moments(cnt)
+    #     cx = int(M["m10"] / M["m00"])
+    #     cy = int(M["m01"] / M["m00"])
+    #     if side == "right":
+    #         cx += mid
+    #     if draw:
+    #         cv2.circle(frame, (cx, cy), 4, (255, 255, 255), 5)
 
-        # print(cx , cy)
-        return [cx, cy]
+    #     # print(cx , cy)
+    #     return [cx, cy]
+    def cal_center(self, threshold, mid, frame, side, draw=False):
+        # cnts, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        # # print(cnts)
+        # cnt = max(cnts, key=cv2.contourArea)
+        # M = cv2.moments(cnt)
+        # cx = int(M["m10"] / M["m00"])
+        # cy = int(M["m01"] / M["m00"])
+        # if side == "right":
+        #     cx += mid
+        # if draw:
+        #     cv2.circle(frame, (cx, cy), 4, (255, 255, 255), 5)
+
+        # # print(cx , cy)
+        rows, cols = frame.shape
+        contours, _ = cv2.findContours(
+            threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+        )
+        # contours = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
+
+        for cnt in contours:
+            (x, y, w, h) = cv2.boundingRect(cnt)
+
+            # cv2.drawContours(roi, [cnt], -1, (0, 0, 255), 3)
+            # cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+            cv2.line(frame, (x + int(w / 2), 0), (x + int(w / 2), rows), (0, 255, 0), 1)
+            cv2.line(frame, (0, y + int(h / 2)), (cols, y + int(h / 2)), (0, 255, 0), 1)
+        return 0
 
     def cal_bounds(self):
         eye_height = self.center_bottom[1] - self.center_top[1]
@@ -191,10 +223,10 @@ class Main:
                         "right", [42, 45, 43, 44, 47, 46], thresh[:, mid:], landmarks
                     )
                     left_eye_center = left_eye.frame_singalar(self.frame, gray)
-                    right_eye_center = right_eye.frame_singalar(self.frame, gray)
+                    #right_eye_center = right_eye.frame_singalar(self.frame, gray)
 
                     left_eye.draw_bounds(self.frame)
-                    right_eye.draw_bounds(self.frame)
+                    #right_eye.draw_bounds(self.frame)
 
                     mask = np.zeros(self.frame.shape[:2], dtype=np.uint8)
 
@@ -213,23 +245,23 @@ class Main:
                     left_eye_center = self.cal_center(
                         thresh[:, 0:mid], mid, self.frame, left_eye.side, draw=True
                     )
-                    right_eye_center = self.cal_center(
-                        thresh[:, mid:], mid, self.frame, right_eye.side, draw=True
-                    )
+                    # right_eye_center = self.cal_center(
+                    #     thresh[:, mid:], mid, self.frame, right_eye.side, draw=True
+                    #)
 
-                    abs_scalar = self.cal_scalar(
-                        left_eye.cal_bounds(), right_eye.cal_bounds()
-                    )
-                    abs_center = self.cal_abs_center(
-                        left_eye_center, right_eye_center, abs_scalar
-                    )
+                    # abs_scalar = self.cal_scalar(
+                    #     left_eye.cal_bounds(), right_eye.cal_bounds()
+                    # )
+                    # abs_center = self.cal_abs_center(
+                    #     left_eye_center, right_eye_center, abs_scalar
+                    # )
 
-                    x3 = np.interp(
-                        abs_center[0], (0, self.width_cam), (0, self.width_screen)
-                    )
-                    y3 = np.interp(
-                        abs_center[1], (0, self.height_cam), (0, self.height_screen)
-                    )
+                    # x3 = np.interp(
+                    #     abs_center[0], (0, self.width_cam), (0, self.width_screen)
+                    # )
+                    # y3 = np.interp(
+                    #     abs_center[1], (0, self.height_cam), (0, self.height_screen)
+                    # )
 
                     # autopy.mouse.move(x3, y3)
 

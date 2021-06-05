@@ -67,32 +67,37 @@ class Eye_base:
     def frame_singalar(self, frame, gray):
 
         # RE WRITE THIS BITCH TO WHERE IT FOLLOWS THE NOTES SQUARE
-        # eye_region = np.array(
-        #     [
-        #         (
-        #             self.landmarks.part(self.points[0]).x,
-        #             self.landmarks.part(self.points[1]).y,
-        #         ),
-        #         (
-        #             self.landmarks.part(self.points[2]).x,
-        #             self.landmarks.part(self.points[1]).y,
-        #         ),
-        #         (
-        #             self.landmarks.part(self.points[0]).x,
-        #             self.landmarks.part(self.points[3]).y,
-        #         ),
-        #         (
-        #             self.landmarks.part(self.points[3]).x,
-        #             self.landmarks.part(self.points[3]).y,
-        #         ),
-        #         # (
-        #         #     self.landmarks.part(self.points[5]).x,
-        #         #     self.landmarks.part(self.points[5]).y,
-        #         # ),
-        #     ],
-        #     np.int32,
-        # )
-        # eye_region = np.array(
+        
+        eye_region = np.array(
+            [
+                (
+                    self.landmarks.part(self.points[0]).x,
+                    self.landmarks.part(self.points[0]).y,
+                ),
+                (
+                    self.landmarks.part(self.points[2]).x,
+                    self.landmarks.part(self.points[2]).y,
+                ),
+                (
+                    self.landmarks.part(self.points[3]).x,
+                    self.landmarks.part(self.points[3]).y,
+                ),
+                (
+                    self.landmarks.part(self.points[1]).x,
+                    self.landmarks.part(self.points[1]).y,
+                ),
+                (
+                    self.landmarks.part(self.points[5]).x,
+                    self.landmarks.part(self.points[5]).y,
+                ),
+                (
+                    self.landmarks.part(self.points[4]).x,
+                    self.landmarks.part(self.points[4]).y,
+                ),
+            ],
+            np.int32,
+        )
+        #eye_region = np.array(
         #     [
         #         (
         #             self.landmarks.part(self.points[0]).x,
@@ -136,7 +141,7 @@ class Eye_base:
         # _, threshold_eye = cv2.threshold(gray_eye, 170, 255, cv2.THRESH_BINARY)
         gray_eye = cv2.GaussianBlur(gray_eye, (7, 7), 0)
         _, threshold = cv2.threshold(gray_eye, 3, 255, cv2.THRESH_BINARY_INV)
-        thresh = self.thresh_processing(threshold)
+        thresh = self.cal_thresh(threshold)
         # height, width = threshold_eye.shape
         # left_side_threshold = threshold_eye[0:height, 0 : int(width / 2) : width]
         # left_side_white = cv2.countNonZero(left_side_threshold)
@@ -158,7 +163,7 @@ class Eye_base:
         print(eye_width, eye_height)
         return [eye_width, eye_height]
 
-    def thresh_processing(self, thresh):
+    def cal_thresh(self, thresh):
         thresh = cv2.erode(thresh, None, iterations=8)
         thresh = cv2.dilate(thresh, None, iterations=5)
         thresh = cv2.medianBlur(thresh, 3)
@@ -167,35 +172,31 @@ class Eye_base:
         return thresh
 
     def cal_center(self, threshold, mid, frame, side, draw=False):
-        # cnts, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        # # print(cnts)
-        # cnt = max(cnts, key=cv2.contourArea)
-        # M = cv2.moments(cnt)
-        # cx = int(M["m10"] / M["m00"])
-        # cy = int(M["m01"] / M["m00"])
-        # if side == "right":
-        #     cx += mid
-        # if draw:
-        #     cv2.circle(frame, (cx, cy), 4, (255, 255, 255), 5)
-
-        # # print(cx , cy)
         rows, cols = frame.shape
         contours, _ = cv2.findContours(
             threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
         )
-        # contours = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
 
         for cnt in contours:
             (x, y, w, h) = cv2.boundingRect(cnt)
 
-            # cv2.drawContours(roi, [cnt], -1, (0, 0, 255), 3)
-            # cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-            cv2.line(frame, (x + int(w / 2), 0), (x + int(w / 2), rows), (0, 255, 0), 1)
-            cv2.line(frame, (0, y + int(h / 2)), (cols, y + int(h / 2)), (0, 255, 0), 1)
-        return 0
+            hor_line = [(0, y + int(h / 2)), (cols, y + int(h / 2))]
+            cv2.line(frame, hor_line[0], hor_line[1] , (0, 255, 0), 1)
 
-    def mid_point(self, p1, p2):
-        return [int((p1.x + p2.x) / 2), int((p1.y + p2.y) / 2)]
+            ver_line = [(x + int(w / 2), 0), (x + int(w / 2), rows)]
+            cv2.line(frame,  ver_line[0] , ver_line[1], (0, 255, 0), 1)
+
+            hor_line_midpoint = self.mid_point(hor_line[0], hor_line[1], idx_cal=True)
+            ver_line_midpoint = self.mid_point(ver_line[0], ver_line[1], idx_cal=True)
+
+        return [hor_line_midpoint, ver_line_midpoint]
+
+    def mid_point(self, p1, p2, idx_cal=False):
+        if idx_cal:
+            return [int((p1[0] + p2[0]) / 2), int((p1[1] + p2[1]) / 2)]
+        else:
+            return [int((p1.x + p2.x) / 2), int((p1.y + p2.y) / 2)]
+
 
 
 class Main:
@@ -229,43 +230,29 @@ class Main:
                 mid = (shape[42][0] + shape[39][0]) // 2
                 landmarks = predictor(gray_roi, rect)
 
-                points = [1, 21, 27, 29, 15]
-                left_eye = Eye_base("left", points, thresh[:, 0:mid], landmarks)
+                left_points  = [36, 39, 37, 38, 41, 40]
+                right_points = [42, 45, 43, 44, 47, 46]
+                
+                left_eye = Eye_base("left", left_points, thresh[:, 0:mid], landmarks)
+                right_eye = Eye_base("right", right_points, thresh[:, 0:mid], landmarks)
+
 
                 left_eye_center = left_eye.frame_singalar(self.frame, gray_roi)
+                right_eye_center = right_eye.frame_singalar(self.frame, gray_roi)
                 cv2.rectangle(
                     roi,
-                    (landmarks.part(points[0]).x, landmarks.part(points[1]).y),
-                    (landmarks.part(points[3]).x, landmarks.part(points[3]).y),
+                    (landmarks.part(left_points[0]).x, landmarks.part(left_points[1]).y),
+                    (landmarks.part(left_points[3]).x, landmarks.part(left_points[3]).y),
                     (255, 0, 0),
                 )
-                # cv2.rectangle(
-                #     roi,
-                #     (landmarks.part(points[2]).x, landmarks.part(points[1]).y),
-                #     (landmarks.part(points[4]).x, landmarks.part(points[4]).y),
-                #     (255, 0, 0),
-                # )
+                cv2.rectangle(
+                    roi,
+                    (landmarks.part(right_points[0]).x, landmarks.part(right_points[1]).y),
+                    (landmarks.part(right_points[3]).x, landmarks.part(right_points[3]).y),
+                    (255, 0, 0),
+                )
 
-                # contours, _ = cv2.findContours(
-                #     threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
-                # )
-                # # contours = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
 
-                # for cnt in contours:
-                #     (x, y, w, h) = cv2.boundingRect(cnt)
-
-                #     # cv2.drawContours(roi, [cnt], -1, (0, 0, 255), 3)
-                #     cv2.rectangle(roi, (x, y), (x + w, y + h), (255, 0, 0), 2)
-                #     cv2.line(
-                #         roi, (x + int(w / 2), 0), (x + int(w / 2), rows), (0, 255, 0), 2
-                #     )
-                #     cv2.line(
-                #         roi, (0, y + int(h / 2)), (cols, y + int(h / 2)), (0, 255, 0), 2
-                #     )
-                #     break
-
-            # cv2.imshow("Threshold", threshold)
-            # cv2.imshow("gray roi", gray_roi)
             cv2.imshow("Roi", roi)
 
             if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -292,7 +279,7 @@ class Main:
 
         return mask
 
-    def thresh_processing(self, thresh):
+    def cal_thresh(self, thresh):
         thresh = cv2.erode(thresh, None, iterations=8)
         thresh = cv2.dilate(thresh, None, iterations=5)
         thresh = cv2.medianBlur(thresh, 3)
@@ -302,7 +289,7 @@ class Main:
 
     def cal_center(self, thresh, mid, frame, side, draw=False):
         cnts, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        # print(cnts)
+
         cnt = max(cnts, key=cv2.contourArea)
         M = cv2.moments(cnt)
         cx = int(M["m10"] / M["m00"])
