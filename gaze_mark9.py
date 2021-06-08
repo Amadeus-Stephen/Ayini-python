@@ -52,11 +52,7 @@ class Eye_base:
     def draw_lines(self, frame):
         # hor_line = cv2.line(frame , self.left_point, self.right_point   , (255,255,255),2)
         # ver_line = cv2.line(frame , self.center_top, self.center_bottom , (255,255,255),2)
-
-        # print(self.left_point)
-        # print(self.center_bottom)
-        # print(self.right_point)
-        # print(self.center_top)
+         
         cv2.rectangle(
             frame,
             (self.left_point[0], self.center_top[1]),
@@ -97,35 +93,6 @@ class Eye_base:
             ],
             np.int32,
         )
-        #eye_region = np.array(
-        #     [
-        #         (
-        #             self.landmarks.part(self.points[0]).x,
-        #             self.landmarks.part(self.points[1]).y,
-        #         ),
-        #         (
-        #             self.landmarks.part(self.points[3]).x,
-        #             self.landmarks.part(self.points[3]).y,
-        #         ),
-        #         (
-        #             self.landmarks.part(self.points[2]).x,
-        #             self.landmarks.part(self.points[1]).y,
-        #         ),
-        #         (
-        #             self.landmarks.part(self.points[0]).x,
-        #             self.landmarks.part(self.points[1]).y,
-        #         ),
-        #         (
-        #             self.landmarks.part(self.points[0]).x,
-        #             self.landmarks.part(self.points[3]).y,
-        #         ),
-        #         (
-        #             self.landmarks.part(self.points[3]).x,
-        #             self.landmarks.part(self.points[3]).y,
-        #         ),
-        #     ],
-        #     # np.int32,
-        # )
         height, width, _ = frame.shape
         mask = np.zeros((height, width), np.uint8)
         cv2.polylines(mask, [eye_region], True, 255, 2)
@@ -137,17 +104,11 @@ class Eye_base:
         max_y = np.max(eye_region[:, 1])
 
         gray_eye = gray_eye[min_y:max_y, min_x:max_x]
-        # gray_eye = gray_eye
-        # _, threshold_eye = cv2.threshold(gray_eye, 170, 255, cv2.THRESH_BINARY)
+
         gray_eye = cv2.GaussianBlur(gray_eye, (7, 7), 0)
         _, threshold = cv2.threshold(gray_eye, 3, 255, cv2.THRESH_BINARY_INV)
         thresh = self.cal_thresh(threshold)
-        # height, width = threshold_eye.shape
-        # left_side_threshold = threshold_eye[0:height, 0 : int(width / 2) : width]
-        # left_side_white = cv2.countNonZero(left_side_threshold)
 
-        # right_side_threshold = threshold_eye[0:height, int(width / 2) : width]
-        # right_side_white = cv2.countNonZero(right_side_threshold)
         eye_center = self.cal_center(
             threshold=thresh, mid=2, frame=gray_eye, side=self.side, draw=True
         )
@@ -157,10 +118,24 @@ class Eye_base:
         return eye_center
 
     def cal_bounds(self):
+        self.left_point = (
+            self.landmarks.part(self.points[0]).x,
+            self.landmarks.part(self.points[0]).y,
+        )
+        self.right_point = (
+            self.landmarks.part(self.points[1]).x,
+            self.landmarks.part(self.points[1]).y,
+        )
+        self.center_top =self.mid_point(
+            self.landmarks.part(self.points[2]), self.landmarks.part(self.points[3])
+        )
+        self.center_bottom = self.mid_point(
+            self.landmarks.part(self.points[4]), self.landmarks.part(self.points[5])
+        )
         eye_height = self.center_bottom[1] - self.center_top[1]
         eye_width = self.right_point[0] - self.left_point[0]
 
-        print(eye_width, eye_height)
+        #print(eye_width, eye_height)
         return [eye_width, eye_height]
 
     def cal_thresh(self, thresh):
@@ -189,7 +164,9 @@ class Eye_base:
             hor_line_midpoint = self.mid_point(hor_line[0], hor_line[1], idx_cal=True)
             ver_line_midpoint = self.mid_point(ver_line[0], ver_line[1], idx_cal=True)
 
-        return [hor_line_midpoint, ver_line_midpoint]
+            true_center = self.mid_point(hor_line_midpoint,ver_line_midpoint, idx_cal=True)
+
+        return true_center
 
     def mid_point(self, p1, p2, idx_cal=False):
         if idx_cal:
@@ -251,7 +228,23 @@ class Main:
                     (landmarks.part(right_points[3]).x, landmarks.part(right_points[3]).y),
                     (255, 0, 0),
                 )
+                
+                abs_scalar = self.cal_scalar(
+                    left_eye.cal_bounds(), right_eye.cal_bounds()
+                )
 
+                abs_center = self.cal_abs_center(
+                    left_eye_center , right_eye_center , abs_scalar
+                )
+
+                # ratio the size of the camera to the res of the monitor/display from the multi the abs_center coords
+                # 
+
+                print("bounds", left_eye.cal_bounds() , right_eye.cal_bounds())
+                print("scalar", abs_scalar)
+                print("center", abs_center)
+                print("xy", x3, y3)
+                #autopy.mouse.move(x3, y3)
 
             cv2.imshow("Roi", roi)
 
@@ -266,50 +259,15 @@ class Main:
             coords[i] = (shape.part(i).x, shape.part(i).y)
         return coords
 
-    def cal_mask(self, shape, mask, left, right):
-        mask = self.cal_eye_on_mask(shape, mask, left)
-        mask = self.cal_eye_on_mask(shape, mask, right)
 
-        return mask
-
-    def cal_eye_on_mask(self, shape, mask, side):
-        points = [shape[i] for i in side]
-        points = np.array(points, dtype=np.int32)
-        mask = cv2.fillConvexPoly(mask, points, 255)
-
-        return mask
-
-    def cal_thresh(self, thresh):
-        thresh = cv2.erode(thresh, None, iterations=8)
-        thresh = cv2.dilate(thresh, None, iterations=5)
-        thresh = cv2.medianBlur(thresh, 3)
-        thresh = cv2.bitwise_not(thresh)
-
-        return thresh
-
-    def cal_center(self, thresh, mid, frame, side, draw=False):
-        cnts, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-
-        cnt = max(cnts, key=cv2.contourArea)
-        M = cv2.moments(cnt)
-        cx = int(M["m10"] / M["m00"])
-        cy = int(M["m01"] / M["m00"])
-        if side == "right":
-            cx += mid
-        if draw:
-            cv2.circle(frame, (cx, cy), 4, (0, 0, 255), 2)
-
-        # print(cx , cy)
-        return [cx, cy]
-
-    def cal_scalar(self, eye1_bounds, eye2_bounds):
-        x_scalar = eye1_bounds[0] / eye2_bounds[0]
+    def cal_scalar(self, eye1_bounds, eye2_bounds):                                             # finds the difference in Width and Height of the eyes
+        x_scalar = eye1_bounds[0] / eye2_bounds[0]                                              # To be then used to math into a singlar point in cal_abs_center()
         y_scalar = eye1_bounds[1] / eye2_bounds[1]
 
         return [x_scalar, y_scalar]  # scale eye 2
 
-    def cal_abs_center(self, eye1_center, eye2_center, scalar):
-        print(eye1_center)
+    def cal_abs_center(self, eye1_center, eye2_center, scalar):                                 # finds the midpoint of x and y with the scaled 
+        print(eye1_center)                                                                      # difference factor of the other eye to equalize the number
         abs_x = (eye1_center[0] + (eye2_center[0] * scalar[0])) / 2
         abs_y = (eye1_center[1] + (eye2_center[1] * scalar[1])) / 2
 
