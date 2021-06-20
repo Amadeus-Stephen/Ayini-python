@@ -185,7 +185,7 @@ class Main:
         self.height_cam = 480
         self.width_screen = autopy.screen.size()[0]
         self.height_screen = autopy.screen.size()[1]
-        self.frame_hist = [0,0,0,0,0]
+        self.frame_hist = [0,0,0,0,0,0,0,0]
 
     def main(self):
 
@@ -255,7 +255,7 @@ class Main:
 
                 print("center_scaled", abs_center_scaled)
 
-                avg_hist = cal_avg_hist(abs_center_scaled)
+                avg_hist = self.cal_avg_hist(abs_center_scaled)
 
                 if avg_hist:
                     autopy.mouse.move(avg_hist[0], avg_hist[1])
@@ -302,7 +302,8 @@ class Main:
 
     def cal_avg_hist(self, n_coords):
         del self.frame_hist[0]
-        self.frame_hist[len(self.frame_hist) -1 ] = n_coords
+        self.frame_hist.append(n_coords)
+        #self.frame_hist[len(self.frame_hist) -1 ] = n_coords
 
         #sum(self.frame_hist) / len(self.frame_hist) not how coords work lol
         if 0 not in self.frame_hist:
