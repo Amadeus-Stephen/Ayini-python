@@ -185,6 +185,7 @@ class Main:
         self.height_cam = 480
         self.width_screen = autopy.screen.size()[0]
         self.height_screen = autopy.screen.size()[1]
+        self.frame_hist = [0,0,0,0,0]
 
     def main(self):
 
@@ -245,12 +246,22 @@ class Main:
                     abs_center[0] * abs_ratio[0][0] * abs_ratio[1][0],
                     abs_center[1] * abs_ratio[0][1] * abs_ratio[1][1]
                 ]
+
+                # create a history index and render the average of the past 5 frames
                 print("bounds", left_eye.cal_bounds() , right_eye.cal_bounds())
+
                 print("scalar", abs_scalar)
                 print("center", abs_center)
+
                 print("center_scaled", abs_center_scaled)
-                #print("xy", x3, y3)
-                #autopy.mouse.move(x3, y3)
+
+                avg_hist = cal_avg_hist(abs_center_scaled)
+
+                if avg_hist:
+                    autopy.mouse.move(avg_hist[0], avg_hist[1])
+                else:
+                    autopy.mouse.move(abs_center_scaled[0], abs_center_scaled[1])
+
 
             cv2.imshow("Roi", roi)
 
@@ -289,6 +300,26 @@ class Main:
 
         return [ratio_scalar_cam , ratio_scalar_mon]
 
+    def cal_avg_hist(self, n_coords):
+        del self.frame_hist[0]
+        self.frame_hist[len(self.frame_hist) -1 ] = n_coords
+
+        #sum(self.frame_hist) / len(self.frame_hist) not how coords work lol
+        if 0 not in self.frame_hist:
+
+            list_x = []
+            list_y = []
+            for coords in self.frame_hist:
+                list_x.append(coords[0])
+                list_y.append(coords[1])
+
+            avg_x = sum(list_x) / len(self.frame_hist)
+            avg_y = sum(list_y) / len(self.frame_hist)
+
+            return [avg_x, avg_y]
+        else:
+            return 0
+            
     def close(self, cap):
         cap.release()
         cv2.destroyAllWindows()
