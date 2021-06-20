@@ -241,9 +241,14 @@ class Main:
                 abs_ratio = self.cal_ratio_scalar(left_eye.cal_bounds(),right_eye.cal_bounds())
 
 
+                abs_center_scaled = [
+                    abs_center[0] * abs_ratio[0][0] * abs_ratio[1][0],
+                    abs_center[1] * abs_ratio[0][1] * abs_ratio[1][1]
+                ]
                 print("bounds", left_eye.cal_bounds() , right_eye.cal_bounds())
                 print("scalar", abs_scalar)
                 print("center", abs_center)
+                print("center_scaled", abs_center_scaled)
                 #print("xy", x3, y3)
                 #autopy.mouse.move(x3, y3)
 
@@ -267,12 +272,6 @@ class Main:
 
         return [x_scalar, y_scalar]  # scale eye 2
 
-    def cal_ratio_scalar(self, eye1_bounds , eye2_bounds):                                     #finds the comparitive bounds of both eyes to make and ABS bound
-                                                                                               #The scales to camera then montior
-        abs_bounds = [(eye1_bounds[0] + eye2_bounds[0])/2 , (eye1_bounds[1] + eye2_bounds[1])/2 ]
-
-        ratio_scalar_to_camera =  [ self.width_cam / abs_bounds[0] , self.height_cam / abs_bounds[1] ]
-        ratio_scalar_to_montior = [ self.width_screen / self.width_cam , self.height_screen / self.height_cam]
 
     def cal_abs_center(self, eye1_center, eye2_center, scalar):                                 # finds the midpoint of x and y with the scaled 
         print(eye1_center)                                                                      # difference factor of the other eye to equalize the number
@@ -280,6 +279,15 @@ class Main:
         abs_y = (eye1_center[1] + (eye2_center[1] * scalar[1])) / 2
 
         return [abs_x, abs_y]
+
+    def cal_ratio_scalar(self, eye1_bounds , eye2_bounds):                                     #finds the comparitive bounds of both eyes to make and ABS bound
+                                                                                               #The scales to camera then montior
+        abs_bounds = [(eye1_bounds[0] + eye2_bounds[0])/2 , (eye1_bounds[1] + eye2_bounds[1])/2 ]
+
+        ratio_scalar_cam = [ self.width_cam / abs_bounds[0] , self.height_cam / abs_bounds[1] ]
+        ratio_scalar_mon = [ self.width_screen / self.width_cam , self.height_screen / self.height_cam]
+
+        return [ratio_scalar_cam , ratio_scalar_mon]
 
     def close(self, cap):
         cap.release()
