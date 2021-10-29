@@ -5,7 +5,7 @@ import math
 import cv2
 import numpy as np
 
-img = cv2.imread('input.jpg')
+img = cv2.imread('image.jpg')
 scaling_factor = 0.7
 
 img = cv2.resize(img, None, fx=scaling_factor, fy=scaling_factor, interpolation=cv2.INTER_AREA)

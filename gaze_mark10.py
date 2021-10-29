@@ -96,6 +96,7 @@ class Eye_base:
             ],
             np.int32,
         )
+
         height, width, _ = frame.shape                      # all of this is isolating the eye area of the eye region given
         mask = np.zeros((height, width), np.uint8)          # the points of the eye.
         cv2.polylines(mask, [eye_region], True, 255, 2)     # 
@@ -108,7 +109,10 @@ class Eye_base:
 
         gray_eye = gray_eye[min_y:max_y, min_x:max_x]       #
 
-        gray_eye = cv2.GaussianBlur(gray_eye, (7, 7), 0)
+        # gray_eye = cv2.GaussianBlur(gray_eye, (5, 5), 0)
+
+        # cv2.imshow(self.side + " eye", gray_eye)
+        gray_eye = cv2.medianBlur(gray_eye, 9)
         _, threshold = cv2.threshold(gray_eye, 3, 255, cv2.THRESH_BINARY_INV)   #returns a version of the gray scaled eye
                                                                                 #into a binary black and white
         thresh = self.cal_thresh(threshold)
@@ -116,9 +120,38 @@ class Eye_base:
         eye_center = self.cal_center(
             threshold=thresh, mid=2, frame=gray_eye, side=self.side, draw=True
         )
+        rows = gray_eye.shape[0]
+        circles = cv2.HoughCircles(gray_eye,cv2.HOUGH_GRADIENT,1,15,param1=100,param2=10, minRadius=20 , maxRadius=50)
 
+        if circles is not None:
+            circles = np.uint16(np.around(circles))
+            for i in circles[0, :]:
+                center = (i[0], i[1])
+                
+                cv2.circle(gray_eye, center, 1, (255, 0, 0), 3)
+            # circle outline
+                # radius = i[2]
+                # cv2.circle(gray_eye, center, radius, (0, 0, 255), 3)
         # cv2.imshow(self.side + "  threshold", threshold_eye)
-        cv2.imshow(self.side + " gray", gray_eye)
+        img_not = cv2.bitwise_not(gray_eye)
+       
+        image = np.zeros((self.cal_bounds()[1], self.cal_bounds()[0], 3), np.uint8)
+        image[:] = (255, 255, 255)
+        #cv2.imshow(self.side + " red", image)
+        
+        gray_eye = cv2.resize(gray_eye, self.cal_bounds())
+
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) # returns gray scale
+        print("image")
+        print(len(image.shape))
+        print("eye")
+        print(len(gray_eye.shape))
+        # dst = cv2.addWeighted(image,0.7,gray_eye,0.3,0)
+        cv2.imshow('dst',image)
+        #`cv2.imshow(self.side + " img_not", img_not)
+
+
+
         return eye_center
 
     def cal_bounds(self): # calculates the bonds of the eye for the scaling that is need later
@@ -161,10 +194,10 @@ class Eye_base:
             (x, y, w, h) = cv2.boundingRect(cnt)
 
             hor_line = [(0, y + int(h / 2)), (cols, y + int(h / 2))]
-            cv2.line(frame, hor_line[0], hor_line[1] , (0, 255, 0), 1)
+            # cv2.line(frame, hor_line[0], hor_line[1] , (0, 255, 0), 1)
 
             ver_line = [(x + int(w / 2), 0), (x + int(w / 2), rows)]
-            cv2.line(frame,  ver_line[0] , ver_line[1], (0, 255, 0), 1)
+            # cv2.line(frame,  ver_line[0] , ver_line[1], (0, 255, 0), 1)
 
             hor_line_midpoint = self.mid_point(hor_line[0], hor_line[1], idx_cal=True) 
             ver_line_midpoint = self.mid_point(ver_line[0], ver_line[1], idx_cal=True)
@@ -173,7 +206,7 @@ class Eye_base:
                                                                 #but this would return to points as ((x,y),(x,y))
                                                                 # where we need (x,y)
 
-
+            # cv2.circle(frame,(true_center),2,(255,0,0),3)
         return true_center
 
     def mid_point(self, p1, p2, idx_cal=False):
@@ -209,6 +242,7 @@ class Main:
 
             gray_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY) # returns gray scale
             gray_roi = cv2.GaussianBlur(gray_roi, (7, 7), 0) # cleans image of fractions
+            
             _, threshold = cv2.threshold(gray_roi, 3, 255, cv2.THRESH_BINARY_INV)
             rects = detector(gray_roi)
             for rect in rects: # for all faces do function
@@ -260,12 +294,12 @@ class Main:
                 ]
 
                 # create a history index and render the average of the past 5 frames
-                print("bounds", left_eye.cal_bounds() , right_eye.cal_bounds())
+                #print("bounds", left_eye.cal_bounds() , right_eye.cal_bounds())
 
-                print("scalar", abs_scalar)
-                print("center", abs_center)
+                #print("scalar", abs_scalar)
+                #print("center", abs_center)
 
-                print("center_scaled", abs_center_scaled)
+                #print("center_scaled", abs_center_scaled)
 
                 # avg_hist = self.cal_avg_hist(abs_center_scaled)
 
@@ -276,6 +310,7 @@ class Main:
 
 
             cv2.imshow("Roi", roi)
+            
 
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 self.cap.release()
@@ -297,7 +332,7 @@ class Main:
 
 
     def cal_abs_center(self, eye1_center, eye2_center, scalar):                                 # finds the midpoint of x and y with the scaled 
-        print(eye1_center)                                                                      # difference factor of the other eye to equalize the number
+        #print(eye1_center)                                                                      # difference factor of the other eye to equalize the number
         abs_x = (eye1_center[0] + (eye2_center[0] * scalar[0])) / 2
         abs_y = (eye1_center[1] + (eye2_center[1] * scalar[1])) / 2
 
